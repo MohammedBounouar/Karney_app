@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "frontend_Karney",
+    "slug": "karney",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "ads": {
+          "adMobAppId": "ca-app-pub-2591774044052002~3204180278"
+        }
+      }
+    },
+    "android": {
+      "permissions": ["INTERNET"],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "ads": {
+          "adMobAppId": "ca-app-pub-2591774044052002~3204180278"
+        }
+      },
+      "package": "com.bounouar.karney"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "projectId": "7d7eb3e8-52ea-415c-b479-30b3a16df58d",
+      "eas": {
+        "projectId": "64a56867-24db-4b30-b362-93034df8f3aa"
+      }
+    },
+    "owner": "bounouar"
+  }
+}
