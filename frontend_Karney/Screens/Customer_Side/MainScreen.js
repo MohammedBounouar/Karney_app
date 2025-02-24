@@ -9,14 +9,13 @@ import {
   Dimensions,
   Modal,
   SectionList,
-  Image,
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import axios from 'axios';
-import * as ImagePicker from 'expo-image-picker';
+
 import Feather from '@expo/vector-icons/Feather';
 import AntDesign from '@expo/vector-icons/AntDesign';
+
 import dictionary from '../StoreOwner_Side/language.json';
 import useLanguage from '../StoreOwner_Side/Translate';
 import ColorPicker from '../StoreOwner_Side/ColorPicker';
@@ -34,8 +33,6 @@ const MainScreen = ({ route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [CustomerPic, setCustomerPic] = useState(null);
-  const [imageUri, setImageUri] = useState(null);
 
   const [state, setState] = useState({
     email: '',
@@ -43,17 +40,6 @@ const MainScreen = ({ route }) => {
     newPassword: '',
   });
 
-  // Fetch customer profile image
-  const GetCustomerPic = async () => {
-    try {
-      const response = await fetch(`${endPoint}/api/Customers/${customerId}`);
-      if (!response.ok) throw new Error(`Network response not ok, status: ${response.status}`);
-      const customerData = await response.json();
-      setCustomerPic(`${endPoint}/storage/profile_images/${customerData.image}`);
-    } catch (error) {
-      console.error('Error fetching customer picture:', error.message);
-    }
-  };
 
   // Fetch transactions and total credit
   const fetchData = async () => {
@@ -105,64 +91,6 @@ const MainScreen = ({ route }) => {
     await fetchData();
     await GetCustomerPic();
     setRefreshing(false);
-  };
-
-  // Handle image upload
-  const updateCustomerImage = async (imageUri) => {
-    if (!imageUri) {
-      console.error('No image URI provided');
-      return;
-    }
-
-    const formData = new FormData();
-    const imageType = imageUri.substring(imageUri.lastIndexOf(".") + 1);
-    const imageName = `photo.${imageType}`;
-
-    formData.append('image', {
-      uri: imageUri,
-      type: `image/${imageType}`,
-      name: imageName,
-    });
-
-    try {
-      const response = await axios.put(`${endPoint}/api/Customers/${customerId}/update-image`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json',
-        },
-      });
-
-      console.log('Image uploaded successfully', response.data);
-      if (response.data.image) {
-        const uploadedImageUri = `${endPoint}/storage/profile_images/${response.data.image}`;
-        setCustomerPic(uploadedImageUri); // Update CustomerPic state
-        console.log('Updated image URI:', uploadedImageUri);
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error.message);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
-    }
-  };
-
-  // Pick image from gallery
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedImage = result.assets[0];
-      setImageUri(selectedImage.uri);
-      updateCustomerImage(selectedImage.uri); // Upload the selected image
-    }
-  };
-
-  // Handle long press on avatar
-  const handleLongPress = () => {
-    pickImage();
   };
 
   // Handle input change
@@ -225,13 +153,13 @@ const MainScreen = ({ route }) => {
     <SafeAreaView>
       <TouchableOpacity style={styles.item} activeOpacity={0.6}>
         <View style={styles.keyQte}>
-          <Text style={styles.key}>{item.produit_bought}</Text>
+          <Text style={styles.key}>{item.product_bought}</Text>
           <Text style={[styles.Qte, { color: colorPicked }]}>
-            {item.Quantity_bought} x {item.produit_price} {dictionary[CurrentLanguage]?.unit_price}
+            {item.Quantity_bought} x {item.product_price} {dictionary[CurrentLanguage]?.unit_price}
           </Text>
         </View>
         <Text style={[styles.value, { backgroundColor: colorPicked }]}>
-          {item.produit_price * item.Quantity_bought} {dictionary[CurrentLanguage]?.mad}
+          {item.product_price * item.Quantity_bought} {dictionary[CurrentLanguage]?.mad}
         </Text>
       </TouchableOpacity>
     </SafeAreaView>
@@ -255,15 +183,9 @@ const MainScreen = ({ route }) => {
   return (
     <>
       <View style={styles.header}>
-        <TouchableOpacity onLongPress={handleLongPress} delayLongPress={400}>
           <View style={[styles.avatar, { backgroundColor: colorPicked }]}>
-            {CustomerPic ? (
-              <Image source={{ uri: CustomerPic }} style={styles.avatarImage} resizeMode="cover" />
-            ) : (
               <Text style={styles.avatarText}>{getInitials(customerName)}</Text>
-            )}
           </View>
-        </TouchableOpacity>
         <View style={styles.nameSection}>
           <Text style={styles.title}>{customerName}</Text>
           <TouchableOpacity onPress={openEditModal}>
