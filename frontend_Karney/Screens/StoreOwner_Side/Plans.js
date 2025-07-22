@@ -1,59 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import * as DevClient from 'expo-dev-client';
-
-// import { InterstitialAd, AdEventType, TestIds} from 'react-native-google-mobile-ads';
-
-
 import dictionary from './language.json';
 import useLanguage from './Translate';
 import ColorPicker from './ColorPicker';
 import SpinnerLoad from './Spinner';
 import { endPoint } from '../../endpoint';
-
-
 import { Ionicons } from '@expo/vector-icons';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 
 const { width } = Dimensions.get('window');
 
+const colorMap = {
+    "#050C9C": ["#FFFFFF", "#686D76", "#050C9C"],
+    "#0E8388": ["#FFFFFF", "#295F98", "#0E8388"],
+    "#607274": ["#FFFFFF", "#393E46", "#607274"],
+    "#D65A31": ["#FFFFFF", "#CD5C08", "#D65A31"],
+};
 
-// const adUnitId = __DEV__ ? TestIds.ADAPTIVE_BANNER : 'ca-app-pub-xxxxxxxxxxxxx/yyyyyyyyyyyyyy';
-
-// const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-2591774044052002/2585845559';
-
-// const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
-//   keywords: ['fashion', 'clothing'],
-// });
 const Plans = ({ navigation }) => {
-
-  // const [loaded, setLoaded] = useState(false);
-
-  // useEffect(() => {
-  //   const unsubscribe = interstitial.addAdEventListener(AdEventType.LOADED, () => {
-  //     setLoaded(true);
-  //     interstitial.show();
-  //   });
-
-  //   // Start loading the interstitial straight away
-  //   interstitial.load();
-
-  //   // Unsubscribe from events on unmount
-  //   return unsubscribe;
-  // }, []);
-
     const colorPicked = ColorPicker();
     const CurrentLanguage = useLanguage();
-
-    const [selectedPlanDetails, setSelectedPlanDetails] = useState(null); // State to hold selected plan details
-
+    const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
     const [plans, setPlans] = useState([]);
+    const [OwnerPlan, setOwnerPlan] = useState();
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);
 
     const handleSelectPlan = (plan) => {
-        setSelectedPlanDetails(plan); // Update state with selected plan details
+        setSelectedPlanDetails(plan);
     };
 
     const GetPlans = async () => {
@@ -65,49 +41,45 @@ const Plans = ({ navigation }) => {
             const data = await response.json();
             setPlans(data.plans || []);
         } catch (error) {
-            console.error('Error fetching plans:', error);
+            setError('Error fetching plans. Please try again later.');
         }
     };
 
-    const  [OwnerPlan , setOwnerPlan] = useState();
     const GetOwnerPlan = async () => {
         try {
             const storeOwnerId = await AsyncStorage.getItem('Id');
             if (!storeOwnerId) {
                 throw new Error('Store owner ID not found');
             }
-
             const response = await fetch(`${endPoint}/api/store-owner/plan/${storeOwnerId}`);
             if (!response.ok) {
                 throw new Error(`Network response was not ok: ${response.statusText}`);
             }
-
             const data = await response.json();
             if (data && data.plan) {
-              setOwnerPlan(data.plan); // Update state with the plan data
+                setOwnerPlan(data.plan);
             } else {
-                console.error('No plan found for the store owner');
+                setError('No plan found for the store owner.');
             }
         } catch (error) {
-            console.error('Error fetching owner plan:', error.message);
+            setError('Error fetching owner plan. Please try again later.');
         }
     };
 
     useEffect(() => {
-        GetPlans();
-        GetOwnerPlan();
+        const fetchData = async () => {
+            setLoading(true);
+            setError("");
+            await Promise.all([GetPlans(), GetOwnerPlan()]);
+            setLoading(false);
+        };
+        fetchData();
     }, []);
 
     const getBackgroundColor = (index) => {
-        switch (colorPicked) {
-            case "#050C9C": return index === 0 ? "#FFFFFF" : index === 1 ? "#686D76" : "#050C9C";
-            case "#0E8388": return index === 0 ? "#FFFFFF" : index === 1 ? "#295F98" : "#0E8388";
-            case "#607274": return index === 0 ? "#FFFFFF" : index === 1 ? "#393E46" : "#607274";
-            case "#D65A31": return index === 0 ? "#FFFFFF" : index === 1 ? "#CD5C08" : "#D65A31";
-            default: return "#FFFFFF";
-        }
+        const colors = colorMap[colorPicked] || ["#FFFFFF", "#686D76", "#050C9C"];
+        return colors[index] || colors[0];
     };
-
 
     const renderPlan = (plan, index) => (
         <TouchableOpacity
@@ -119,95 +91,74 @@ const Plans = ({ navigation }) => {
             ]}
             activeOpacity={0.9}
             onPress={() => handleSelectPlan(plan)}
+            accessibilityLabel={`Select ${plan.name} plan`}
         >
             <View>
-                <Text style={[styles.planTitle, { color: index === 0 ? colorPicked : 'white' }]}>
-                    {plan.name} Plan
-                </Text>
-                <Text style={[styles.planDescription, { color: index === 0 ? 'black' : 'white' }]}>
-                    +{plan.customers_limit} customers to your store{'\n'}
-                    - {plan.name} Support
-                </Text>
+                <Text style={[styles.planTitle, { color: index === 0 ? colorPicked : 'white' }]}> {plan.name} Plan </Text>
+                <Text style={[styles.planDescription, { color: index === 0 ? 'black' : 'white' }]}> +{plan.customers_limit} customers to your store{"\n"} - {plan.name} Support </Text>
             </View>
-
-            {OwnerPlan && OwnerPlan.name === plan.name ? (
-            // Only show the checkcircle if this plan is the owner's current plan
-            (OwnerPlan.name === plan.name && plan.name === OwnerPlan.name) ? (
+            {OwnerPlan && OwnerPlan.name === plan.name && (
                 <AntDesign
                     name="checkcircle"
                     size={24}
                     color={plan.name === 'Free' ? colorPicked : 'white'}
                 />
-            ) : null
-        ) : null}
+            )}
         </TouchableOpacity>
     );
 
-    
+    // Determine which plan/budget to show: selected or current
+    const displayPlan = selectedPlanDetails || OwnerPlan;
 
     return (
         <View style={styles.container}>
-          <View style={{flexDirection : 'row' , justifyContent : 'space-between'}}>
-
-              <TouchableOpacity activeOpacity={0.8} style={styles.Back} onPress={() => navigation.navigate('MainApp')}>
-                <Ionicons name="chevron-back-sharp" size={24} color="#393E46" />
-                <Text style={styles.title}>Choose Your Plan</Text>
-              </TouchableOpacity>
-              {/* :::::::::::::::::::::::::::::: */}
-              <TouchableOpacity 
-                activeOpacity={0.8}
-                // onPress={showRewardedAd}
-                // onPress={() => {
-                //   interstitial.show();
-                // }}
-                style={[{ flexDirection: 'row', alignItems: 'center' }]}>
-                <View style={[styles.adsButton ,{ backgroundColor: colorPicked, padding: 10, borderRadius: 25 }]}>
-                <Text style={{color : 'white' , fontSize : 12 , marginHorizontal : 3}}>watch ad</Text>
-                  <FontAwesome6 name="add" size={18} color="white" />
-                </View>
-              </TouchableOpacity>
-
-          </View>
-
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.Back}
+                    onPress={() => navigation.goBack()}
+                    accessibilityLabel="Go back"
+                >
+                    <Ionicons name="chevron-back-sharp" size={24} color="#393E46" />
+                    <Text style={styles.title}>Choose Your Plan</Text>
+                </TouchableOpacity>
+            </View>
             <View style={styles.PlansContainer}>
-                {plans.length > 0 ? (
+                {loading ? (
+                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                        <SpinnerLoad />
+                    </View>
+                ) : error ? (
+                    <View style={{ justifyContent: 'center', alignItems: 'center', margin: 20 }}>
+                        <Text style={{ color: 'red', fontSize: 16 }}>{error}</Text>
+                    </View>
+                ) : plans.length > 0 ? (
                     <View style={styles.PlanBudgetContainer}>
                         <View>
                             <Text style={styles.PlanTitle}>Current Plan :</Text>
-                            <Text style={[styles.PlanText, { color: colorPicked }]}>
-                                {selectedPlanDetails?.name || 'None'}
-                            </Text>
+                            <Text style={[styles.PlanText, { color: colorPicked }]}> {displayPlan?.name || 'None'} </Text>
                         </View>
                         <View style={styles.Devider}></View>
                         <View>
                             <Text style={styles.PlanTitle}>Budget :</Text>
-                            <Text style={[styles.PlanText, { color: colorPicked }]}>
-                                {selectedPlanDetails?.price || '0'} MAD
-                            </Text>
+                            <Text style={[styles.PlanText, { color: colorPicked }]}> {displayPlan?.price || '0'} MAD </Text>
                         </View>
                     </View>
-                ) : (
-                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-                        <SpinnerLoad />
-                    </View>
-                )}
-
+                ) : null}
                 {plans.map((plan, index) => renderPlan(plan, index))}
             </View>
-
-            <TouchableOpacity
-                style={[
-                    styles.button,
-                    { backgroundColor: colorPicked, display: selectedPlanDetails?.name === 'Free' ? 'none' : 'flex' }
-                ]}
-                onPress={() => navigation.navigate('PaymentScreen', { plan: selectedPlanDetails?.name, budget: selectedPlanDetails?.price })}
-            >
-                <View>
-                    <Text style={styles.buttonText}>Select the Plan</Text>
-                </View>
-            </TouchableOpacity>
-            <View>
-      </View>
+            {selectedPlanDetails && selectedPlanDetails.name !== 'Free' && (
+                <TouchableOpacity
+                    style={[styles.button, { backgroundColor: colorPicked }]}
+                    onPress={() => navigation.navigate('PaymentScreen', { plan: selectedPlanDetails?.name, budget: selectedPlanDetails?.price })}
+                    accessibilityLabel="Select the plan and proceed to payment"
+                >
+                    <View>
+                        <Text style={styles.buttonText}>Select the Plan</Text>
+                    </View>
+                </TouchableOpacity>
+            )}
+            <View></View>
         </View>
     );
 };
@@ -326,3 +277,4 @@ const styles = StyleSheet.create({
 });
 
 export default Plans;
+

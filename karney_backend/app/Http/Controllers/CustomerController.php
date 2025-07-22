@@ -107,66 +107,48 @@ public function show($id)
 
 public function update(Request $request, $id)
 {
-    // Find the customer by ID
-    $customer = Customer::find($id);
+    $customer = Customer::findOrFail($id);
 
-    if (!$customer) {
-        return response()->json([
-            'status' => 404,
-            'message' => 'Customer not found',
-        ], 404);
-    }
-
-    // Validate the request (only image is required)
     $request->validate([
-        'image' => 'image|mimes:jpeg,png,jpg', // Max 2MB
+        'image' => 'required|file|mimes:jpeg,png,jpg,gif,webp',
     ]);
 
     try {
-        // Handle image upload
         if ($request->hasFile('image')) {
-            // Ensure the directory exists
-            if (!Storage::disk('public')->exists('profile_images')) {
-                Storage::disk('public')->makeDirectory('profile_images');
-                Log::info('Created profile_images directory.');
-            }
-
-            // Delete the old image if it exists
-            if ($customer->image && Storage::disk('public')->exists($customer->image)) {
+            // Create directory if missing
+            Storage::disk('public')->makeDirectory('profile_images');
+            
+            // Delete old image if exists
+            if ($customer->image) {
                 Storage::disk('public')->delete($customer->image);
-                Log::info('Deleted old image: ' . $customer->image);
             }
 
-            // Generate a unique filename
-            $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
-            Log::info('Generated image name: ' . $imageName);
+            // Store with unique filename
+            $imagePath = $request->file('image')->store('profile_images', 'public');
+            
+            // Update customer record
+            $customer->update([
+                'image' => $imagePath
+            ]);
 
-            // Store the image in the 'profile_images' directory
-            $imagePath = $image->storeAs('profile_images', $imageName, 'public');
-            Log::info('Stored image at: ' . $imagePath);
-
-            // Save the relative path to the database
-            $customer->image = $imagePath;
-            $customer->save();
-            Log::info('Updated customer image in database: ' . $imagePath);
+            return response()->json([
+                'status' => 200,
+                'message' => 'Image updated successfully',
+                'image_url' => asset("storage/{$imagePath}")
+            ]);
         }
 
-        // Return a success response
         return response()->json([
-            'status' => 200,
-            'message' => 'Customer image updated successfully',
-            'image_url' => asset('storage/' . $customer->image), // Full URL to the image
-        ]);
-    } catch (\Exception $e) {
-        // Log the error
-        Log::error('Error updating customer image: ' . $e->getMessage());
+            'status' => 400,
+            'message' => 'No image provided'
+        ], 400);
 
-        // Return an error response
+    } catch (\Exception $e) {
+        Log::error('Image upload error: ' . $e->getMessage());
         return response()->json([
             'status' => 500,
-            'message' => 'Failed to update customer image',
-            'error' => $e->getMessage(),
+            'message' => 'Image upload failed',
+            'error' => $e->getMessage()
         ], 500);
     }
 }

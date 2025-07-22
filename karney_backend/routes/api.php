@@ -10,8 +10,8 @@ use App\Http\Controllers\TotalTransactionsController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\OwnerCustomerPivotController;
 use App\Http\Controllers\PlanController;
-
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\StripeController;
 
 
 
@@ -50,6 +50,8 @@ Route::post('/update-customer-limit', [PlanController::class, 'updateCustomerLim
 
 Route::post('/send-notification', [NotificationController::class, 'notifyUser']);
 
+
+Route::post('/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
 
 
 
